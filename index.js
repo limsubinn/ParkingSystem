@@ -1,10 +1,10 @@
 var AWS = require('aws-sdk');
 var iotdata = new AWS.IotData({
-    endpoint: 'a3pxb4norcph62-ats.iot.ap-northeast-2.amazonaws.com',
+    endpoint: '...',
 });
 
 var client = new AWS.Rekognition();
-var bucket = 'cloud-test-hyun';
+var bucket = '...';
 
 exports.handler = async function (event) {
     

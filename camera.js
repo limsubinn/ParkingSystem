@@ -20,34 +20,77 @@ var camera = awsIot.device({
     certPath: './certs/camera-key/certificate.pem.crt',
     caPath: './certs/camera-key/AmazonRootCA1.pem',
     clientId : 'Camera',
-    host: 'a3pxb4norcph62-ats.iot.ap-northeast-2.amazonaws.com'
+    host: '...'
 });
-
-var keys = require("./certs/access-keys.js");
 
 
 // s3 설정 
+var keys = require("./certs/access-keys.js");
 var s3 = new AWS.S3({
     "accessKeyId" : keys.access_key,
     "secretAccessKey" : keys.secret_key
 });
 
 
-// s3에 사진 업로드할 파라미터 
-var params = {
-    Bucket : 'cloud-test-hyun', 
-    Key : 'newcar.jpg',      // S3 object
-    Body:  fs.createReadStream("./images/car1.jpg")
+// 센서, 카메라 모듈 
+const Gpio = require('pigpio').Gpio;
+const PiCamera = require('pi-camera');
+
+
+// The number of microseconds it takes sound to travel 1cm at 20 degrees celcius
+const MICROSECDONDS_PER_CM = 1e6/34321;
+const trigger = new Gpio(24, {mode: Gpio.OUTPUT});
+const echo = new Gpio(23, {mode: Gpio.INPUT, alert: true});
+trigger.digitalWrite(0); // Make sure trigger is low
+
+
+// 초음파 센서 -> 거리 반환 
+function watchHCSR04 () {
+    return new Promise (function (resolve, reject) {
+        echo.on('alert', (level, tick) => {
+            // console.log("HCSR04 on!! ", level);
+
+            if (level == 1) {
+                startTick = tick;
+            } else {
+                const endTick = tick;
+                const diff = (endTick >> 0) - (startTick >> 0); // Unsigned 32 bit arithmetic
+                var distance = diff / 2 / MICROSECDONDS_PER_CM
+                // console.log(distance)
+                resolve(distance);
+            }
+        });
+    });
 }
+
+
+// file read
+const readFile = filePath =>
+    new Promise((resolve, reject) => {
+        fs.readFile(filePath, (error, data) => {
+            if (error) reject(error);
+            resolve(data);
+        });
+    });
+
+
+// file delete
+const deleteFile = filePath =>
+    new Promise((resolve, reject) => {
+        fs.unlink(filePath, (err) => {
+            if (err) reject(err)
+            resolve(`${filePath} was deleted`)
+        });
+    });
 
 
 // s3에 사진 업로드 
 function createObject(params) {
     return new Promise(function (resolve, reject) {
-        s3.upload(params, function (err, data) {        
+        s3.upload(params, function (err, data) {
             if (err) reject(err);
             else resolve(data);
-        })
+        });
     });
 }
 
@@ -61,21 +104,60 @@ async function createDeploymentPackage (params) {
 }
 
 
-// create S3 object
-createDeploymentPackage(params);
+// 사진 찍고 -> 업로드 -> pulbish
+function CameraV2 (distance) {
+    return new Promise (function (resolve, reject) {
+        if (distance < 20) {
+            console.log("Car is Coming !!");
+            
+            var filePath = './photo/image.jpg';
+            var message = {'detect' : 'carRecog/detect/car', 'image' : 'MyCar'};
+
+            // 카메라 
+            const myCamera = new PiCamera({
+                mode: 'photo',
+                output: filePath,
+                width: 300,
+                height: 200,
+                nopreview: true,
+            });
+            
+            // 사진 촬영 
+            myCamera.snap()
+            .then(() => readFile(filePath))
+            .then(data => createDeploymentPackage({ // 사진 업로드 
+                    Bucket : '...',
+                    Key : 'MyCar.jpg',
+                    Body : data,
+                }))
+            .then(() => deleteFile(filePath))
+            .then(() => camera.publish('carRecog/request', JSON.stringify(message))) // publish
+            .then(() => console.log('publish to carRecog/request'))
+            .catch((error) => {
+                console.log(error);
+            });
+        }
+    });
+}
 
 
-// 3초 간격으로 carRecog/request 로 publish 
+async function camera2 () {
+    var dist = await watchHCSR04();
+    await CameraV2(dist);
+
+   // var message = {'detect' : 'carRecog/detect/car', 'image' : 'MyCar'};
+   // camera.publish('carRecog/request', JSON.stringify(message));
+    
+   // console.log('publish to carRecog/request -> '+JSON.stringify(message));
+}
+
+
 camera.on('connect', function() {
     console.log('Camera connected');
-
-    var message = {'detect' : 'carRecog/detect/car', 'image' : 'newcar'};
-    setInterval(function() {
-        camera.publish('carRecog/request', JSON.stringify(message));
-        console.log('publish to carRecog/request -> '+JSON.stringify(message));
-    }, 3000);
+    
+    setInterval(() => {
+        trigger.trigger(10, 1);
+        camera2();
+    }, 10000);
 });
 
-camera.on('message', function() {
-    console.log(topic + "send!!");
-});
