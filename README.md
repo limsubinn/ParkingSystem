@@ -17,25 +17,28 @@
 -	**manage.js** : ‘carRecog/detect/car’ 토픽을 subscribe 하고 있다가 메시지가 들어오면 차량 번호와 데이터베이스 비교 후 입차, 출차 처리
 <br/>
 
-
-### 💡 사용된 부품 
-- 라즈베리 파이 3 Model B, 초음파 센서(HC-SR04), 카메라 모듈(Camera V2.1)
-<br/>
-
-### 💡 사용된 기술 
-- AWS IoT Core
-- AWS Rule
-- AWS IAM
-- AWS Lambda
-- AWS S3
-- AWS Rekognition
-<br/>
-
 ### 💡 결과 Screenshots
 camera.js  
 <img width="452" alt="image" src="https://user-images.githubusercontent.com/66028419/178176396-5baeae18-c9a6-410d-9ea6-b3a153d7d846.png">  
 manage.js  
 <img width="452" alt="image" src="https://user-images.githubusercontent.com/66028419/178176410-636f2512-299d-4ec8-a562-96e549a4db12.png">
 <br/>
+<br/>
+
+### ⚙️ 사용된 부품 
+- 라즈베리 파이 3 Model B, 초음파 센서(HC-SR04), 카메라 모듈(Camera V2.1)
+<img width="414" alt="image" src="https://user-images.githubusercontent.com/66028419/178428215-52a197d9-6938-4d21-8b2e-a3be9556e3d3.png">  
+<br/>
+
+### 🛠 사용된 기술 
+- AWS IoT Core
+- AWS Rule
+- AWS IAM
+- AWS Lambda
+- AWS S3
+- AWS Rekognition
+- AWS RDS
+<br/>
+
 
 
